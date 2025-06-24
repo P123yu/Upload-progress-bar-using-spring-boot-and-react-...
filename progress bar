@@ -1,0 +1,138 @@
+Spring Boot Backend (Simple file upload API)
+
+
+@RestController
+@RequestMapping("/api")
+@CrossOrigin(origins = "*")  // Adjust for your client origin
+public class FileUploadController {
+
+    private final String uploadDir = "C:\\Users\\piyush_kumar\\Desktop\\image file";
+
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
+        File dir = new File(uploadDir);
+        if (!dir.exists()) dir.mkdirs();
+
+        File destination = new File(dir, file.getOriginalFilename());
+        file.transferTo(destination);
+
+        return ResponseEntity.ok("File uploaded successfully: " + file.getOriginalFilename());
+    }
+}
+
+
+
+React Frontend (with upload progress)
+
+
+import React, { useState } from "react";
+
+function UploadWithProgress() {
+  const [progress, setProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const uploadFile = (file) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setProgress(percent);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        setMessage("Upload successful!");
+      } else {
+        setMessage("Upload failed!");
+      }
+      setUploading(false);
+    };
+
+    xhr.onerror = () => {
+      setMessage("Upload error!");
+      setUploading(false);
+    };
+
+    xhr.open("POST", "http://localhost:8080/api/upload", true);
+    setUploading(true);
+    xhr.send(formData);
+  };
+
+  return (
+    <div>
+      <h2>Upload File with Progress</h2>
+      <input
+        type="file"
+        onChange={(e) => {
+          if (e.target.files.length > 0) {
+            uploadFile(e.target.files[0]);
+          }
+        }}
+      />
+      {uploading && (
+        <div>
+          Uploading: {progress}%
+          <progress value={progress} max="100" />
+        </div>
+      )}
+      {message && <div>{message}</div>}
+    </div>
+  );
+}
+
+export default UploadWithProgress;
+
+
+// =============  with only axios no any backend needed 
+
+import axios from 'axios';
+import React, { useState } from 'react';
+
+function FileUpload() {
+  const [progress, setProgress] = useState(0);
+
+  const handleFileUpload = (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    axios.post('http://localhost:8080/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round( (progressEvent.loaded * 100) / progressEvent.total );
+        setProgress(percentCompleted);
+      }
+    })
+    .then(response => {
+      console.log('Upload success', response.data);
+    })
+    .catch(error => {
+      console.error('Upload error', error);
+    });
+  };
+
+  return (
+    <div>
+      <input
+        type="file"
+        onChange={e => {
+          if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+          }
+        }}
+      />
+      <div>Upload Progress: {progress}%</div>
+    </div>
+  );
+}
+
+export default FileUpload;
+
+
+
